@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>Shared shopping list — Pomegranate</title>
+<meta name="robots" content="noindex" />
+<style>
+  :root {
+    --bg: #faf8f5;
+    --card: #ffffff;
+    --ink: #2a2622;
+    --muted: #8a8178;
+    --line: #ece7e0;
+    --accent: #b5452f;
+    --accent-ink: #ffffff;
+    --done: #c6c0b8;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: var(--bg);
+    padding: 20px 18px 12px;
+    border-bottom: 1px solid var(--line);
+  }
+  header h1 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 700;
+    overflow-wrap: break-word;
+  }
+  header p {
+    margin: 4px 0 0;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  main {
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 12px 14px 48px;
+  }
+  .group {
+    margin-top: 18px;
+  }
+  .group h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    margin: 0 4px 6px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 13px 14px;
+    border-bottom: 1px solid var(--line);
+    cursor: pointer;
+    user-select: none;
+  }
+  .item:last-child { border-bottom: none; }
+  .item:active { background: #f5f1eb; }
+  .box {
+    flex: 0 0 24px;
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+    border: 2px solid var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .item.done .box {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .box svg {
+    width: 15px;
+    height: 15px;
+    stroke: var(--accent-ink);
+    stroke-width: 3;
+    fill: none;
+    opacity: 0;
+    transition: opacity 0.1s;
+  }
+  .item.done .box svg { opacity: 1; }
+  .text { flex: 1; min-width: 0; }
+  .name {
+    font-size: 16px;
+    line-height: 1.3;
+  }
+  .item.done .name {
+    color: var(--done);
+    text-decoration: line-through;
+  }
+  .qty {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 1px;
+  }
+  .state {
+    max-width: 420px;
+    margin: 20vh auto 0;
+    padding: 0 20px;
+    text-align: center;
+    color: var(--muted);
+  }
+  .state h1 { font-size: 18px; color: var(--ink); margin-bottom: 8px; }
+  footer {
+    text-align: center;
+    font-size: 12px;
+    color: var(--muted);
+    padding: 28px 18px 40px;
+  }
+  .error-banner {
+    max-width: 560px;
+    margin: 10px auto 0;
+    padding: 10px 14px;
+    background: #fdecea;
+    color: #9a3b2d;
+    border-radius: 10px;
+    font-size: 13px;
+    text-align: center;
+  }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div id="loading" class="state">
+  <h1>Loading list…</h1>
+  <p>Hang tight a moment.</p>
+</div>
+
+<div id="notfound" class="state hidden">
+  <h1>List not found</h1>
+  <p>This link may have expired, or the list is no longer shared. Ask whoever sent it to share it again.</p>
+</div>
+
+<div id="app" class="hidden">
+  <header>
+    <h1 id="listName"></h1>
+    <p id="listHint">Tap an item to tick it off.</p>
+  </header>
+  <main id="groups"></main>
+  <footer>Shared from Pomegranate &middot; view only, no account needed</footer>
+</div>
+
+<div id="errorBanner" class="error-banner hidden"></div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+// Public, RLS-protected key — safe to ship in client code. All access for
+// this page flows through two narrow SECURITY DEFINER functions
+// (get_shared_list / toggle_shared_item) that require the exact share
+// token as an argument; the underlying table grants this key no direct
+// access at all. See tishox-apps/gourmand's app/supabase/schema.sql.
+const SUPABASE_URL = "https://fztocztpnbisueedhngy.supabase.co";
+const SUPABASE_KEY = "sb_publishable_GOxogJ6wnmUNaSYE-_k5LA_UilEJ59y";
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// Matches AISLE_ORDER in the app (src/lib/shopping.ts) so sections appear
+// in the same walking-the-shop order as the Pomegranate app itself.
+const AISLE_ORDER = [
+  "Fruit & veg",
+  "Meat & fish",
+  "Dairy & chilled",
+  "Bakery",
+  "Dry & tinned",
+  "Oils, sauces & spices",
+  "Drinks",
+  "Everything else",
+  "Non-food",
+];
+// Ad-hoc extras added by the list owner aren't re-classified into an aisle
+// here (the app's aisleFor() keyword list is sizeable and lives in the
+// main app repo) — they're grouped together under their own heading.
+const EXTRAS_GROUP = "Added by the list owner";
+
+const token = new URLSearchParams(location.search).get("list");
+
+const loadingEl = document.getElementById("loading");
+const notFoundEl = document.getElementById("notfound");
+const appEl = document.getElementById("app");
+const nameEl = document.getElementById("listName");
+const groupsEl = document.getElementById("groups");
+const errorEl = document.getElementById("errorBanner");
+
+function showError(message) {
+  errorEl.textContent = message;
+  errorEl.classList.remove("hidden");
+  setTimeout(() => errorEl.classList.add("hidden"), 3500);
+}
+
+function checkIcon() {
+  return '<svg viewBox="0 0 24 24"><polyline points="4 13 9 18 20 6"/></svg>';
+}
+
+function renderItem(key, name, qty, done) {
+  const row = document.createElement("div");
+  row.className = "item" + (done ? " done" : "");
+  row.dataset.key = key;
+  row.innerHTML =
+    '<div class="box">' + checkIcon() + "</div>" +
+    '<div class="text"><div class="name"></div>' +
+    (qty ? '<div class="qty"></div>' : "") +
+    "</div>";
+  row.querySelector(".name").textContent = name;
+  if (qty) row.querySelector(".qty").textContent = qty;
+  row.addEventListener("click", () => toggle(row, key));
+  return row;
+}
+
+function render(list) {
+  nameEl.textContent = list.name || "Shopping list";
+
+  const buckets = {};
+  (list.items || []).forEach((it) => {
+    const aisle = it.aisle || "Everything else";
+    (buckets[aisle] = buckets[aisle] || []).push({ key: it.key, name: it.name, qty: it.qty, done: !!it.done });
+  });
+  const extras = (list.extras || []).map((it, i) => ({
+    key: "extra-" + i,
+    name: it.name,
+    qty: it.qty,
+    done: !!it.done,
+  }));
+  if (extras.length) buckets[EXTRAS_GROUP] = extras;
+
+  const order = AISLE_ORDER.concat([EXTRAS_GROUP]);
+
+  groupsEl.innerHTML = "";
+  order
+    .filter((a) => buckets[a] && buckets[a].length)
+    .forEach((aisle) => {
+      const items = buckets[aisle];
+      const group = document.createElement("div");
+      group.className = "group";
+      const remaining = items.filter((it) => !it.done).length;
+      group.innerHTML =
+        '<h2><span></span><span>' + remaining + " left</span></h2>" +
+        '<div class="card"></div>';
+      group.querySelector("h2 span").textContent = aisle;
+      const card = group.querySelector(".card");
+      items.forEach((it) => card.appendChild(renderItem(it.key, it.name, it.qty, it.done)));
+      groupsEl.appendChild(group);
+    });
+
+  loadingEl.classList.add("hidden");
+  notFoundEl.classList.add("hidden");
+  appEl.classList.remove("hidden");
+}
+
+async function toggle(row, key) {
+  const wasDone = row.classList.contains("done");
+  row.classList.toggle("done");
+  const { error } = await supabase.rpc("toggle_shared_item", { p_token: token, p_key: key });
+  if (error) {
+    row.classList.toggle("done", wasDone);
+    showError("Couldn't save that — check your connection and try again.");
+  }
+}
+
+async function load() {
+  if (!token) {
+    loadingEl.classList.add("hidden");
+    notFoundEl.classList.remove("hidden");
+    return;
+  }
+  const { data, error } = await supabase.rpc("get_shared_list", { p_token: token });
+  if (error || !data || data.length === 0) {
+    loadingEl.classList.add("hidden");
+    notFoundEl.classList.remove("hidden");
+    return;
+  }
+  render(data[0]);
+}
+
+load();
+</script>
+</body>
+</html>
