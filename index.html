@@ -260,19 +260,20 @@
   }
   .recipe-hero {
     width: 100%;
-    aspect-ratio: 4 / 3;
-    max-height: 260px;
+    /* The height-via-padding trick, not the `aspect-ratio` property —
+       Chrome's print/PDF pipeline rendered `aspect-ratio` boxes at a very
+       different (much shorter/wider) height than the same box on screen,
+       even with position:relative + an absolutely-positioned img pinned
+       to it. padding-top: 75% (a 4:3 box, since percentage padding is
+       always relative to the element's own WIDTH, including for
+       padding-top/bottom) is the old pre-aspect-ratio way of doing this
+       and renders identically in both screen and print. */
+    padding-top: 75%;
+    position: relative;
     border-radius: 10px;
     overflow: hidden;
     background: var(--bg);
     margin: 18px 0;
-    /* position:relative + an absolutely-positioned img, rather than the
-       img sizing itself off width:100%/height:100% in normal flow — the
-       latter left a blank strip beside the photo in Chrome's print/PDF
-       pipeline (its pagination pass can lay the img out against a stale
-       width before the final page width settles). Pinning the img to the
-       established box via inset:0 isn't subject to that. */
-    position: relative;
   }
   .recipe-hero img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
   .photo-strip {
@@ -353,7 +354,9 @@
     .toolbar, .no-print { display: none !important; }
     .page { width: auto; margin: 0; box-shadow: none; border-radius: 0; padding: 0; }
     .page-body { grid-template-columns: 0.85fr 1.4fr; }
-    .recipe-hero { max-height: 150px; }
+    /* Shorter crop on paper than on screen, to conserve paper — still the
+       padding-top trick, not max-height (see .recipe-hero above for why). */
+    .recipe-hero { padding-top: 32%; }
   }
 
   /* Locked (completed) list ---------------------------------------- */
