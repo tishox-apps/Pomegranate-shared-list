@@ -574,13 +574,13 @@ let pollTimer = null;
 function startPolling() {
   if (pollTimer) return;
   // Someone else (husband, partner) ticking items off elsewhere shows up
-  // here without a manual reload — every 30s, and immediately whenever the
+  // here without a manual reload — every 10s, and immediately whenever the
   // tab/screen comes back into view rather than waiting out the rest of it.
   // Any still-pending taps of our own aren't lost: render() re-applies
   // desiredDone() over whatever this fetch returns.
   pollTimer = setInterval(() => {
     if (!document.hidden) fetchAndRender();
-  }, 30000);
+  }, 10000);
 }
 
 function stopPolling() {
