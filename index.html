@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-<title>Shared shopping list — Pomegranate</title>
+<title>Shared from Pomegranate</title>
 <meta name="robots" content="noindex" />
 <style>
   /* Pomegranate's own palette (app/src/theme/colors.ts) — cherry is the
@@ -191,6 +191,100 @@
   }
   .hidden { display: none !important; }
 
+  /* Shared recipe page ------------------------------------------------- */
+  .recipe-hero {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    border-radius: 14px;
+    overflow: hidden;
+    background: var(--card);
+    margin-bottom: 16px;
+  }
+  .recipe-hero img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .recipe-meta { margin: 4px 0 0; font-size: 13px; color: var(--header-muted); }
+  .recipe-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+  .tag-pill {
+    border-radius: 3px;
+    padding: 4px 7px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    background: rgba(46,85,88,0.10);
+    color: var(--teal);
+  }
+  .source-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 32px;
+    padding: 0 12px;
+    border-radius: 9px;
+    background: rgba(3,82,91,0.08);
+    color: var(--teal);
+    font-size: 12.5px;
+    font-weight: 600;
+    text-decoration: none;
+    margin-bottom: 18px;
+    max-width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .photo-strip {
+    display: flex;
+    gap: 9px;
+    overflow-x: auto;
+    margin-bottom: 20px;
+    padding-bottom: 2px;
+  }
+  .strip-photo {
+    flex: 0 0 auto;
+    width: 104px;
+    height: 78px;
+    border-radius: 11px;
+    object-fit: cover;
+    background: var(--card);
+  }
+  .section-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0 0 10px;
+  }
+  .ingredient-list { margin-bottom: 22px; }
+  .ingredient-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--line);
+  }
+  .ingredient-row:last-child { border-bottom: none; }
+  .ingredient-name { font-size: 14px; color: var(--ink); }
+  .ingredient-qty { font-size: 14px; font-weight: 600; color: var(--teal); white-space: nowrap; padding-left: 10px; }
+  .steps { display: flex; flex-direction: column; gap: 14px; }
+  .step-row { display: flex; gap: 13px; align-items: flex-start; }
+  .step-badge {
+    flex: 0 0 26px;
+    width: 26px;
+    height: 26px;
+    border-radius: 999px;
+    background: var(--teal);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12.5px;
+    font-weight: 700;
+  }
+  .step-text { flex: 1; font-size: 14.5px; line-height: 1.5; color: var(--ink); padding-top: 3px; }
+
   /* Locked (completed) list ---------------------------------------- */
   .locked-banner {
     display: flex;
@@ -352,13 +446,13 @@
 <body>
 
 <div id="loading" class="state">
-  <h1>Loading list…</h1>
+  <h1>Loading…</h1>
   <p>Hang tight a moment.</p>
 </div>
 
 <div id="notfound" class="state hidden">
-  <h1>List not found</h1>
-  <p>This link may have expired, or the list is no longer shared. Ask whoever sent it to share it again.</p>
+  <h1>Not found</h1>
+  <p>This link may have expired, or it's no longer shared. Ask whoever sent it to share it again.</p>
 </div>
 
 <div id="app" class="hidden">
@@ -377,6 +471,26 @@
     </div>
     <button type="button" id="completeButton" class="complete-button hidden">✓ Mark list as completed</button>
     <div id="groups"></div>
+  </main>
+  <footer>Shared from Pomegranate &middot; view only, no account needed</footer>
+</div>
+
+<div id="recipeApp" class="hidden">
+  <header>
+    <h1 id="recipeName"></h1>
+    <p class="recipe-meta" id="recipeMeta"></p>
+  </header>
+  <main>
+    <div id="recipeHero" class="recipe-hero hidden"><img id="recipeHeroImg" alt="" /></div>
+    <div id="recipeTags" class="recipe-tags"></div>
+    <a id="recipeSource" class="source-link hidden" target="_blank" rel="noopener">
+      <span>↗</span><span id="recipeSourceLabel"></span>
+    </a>
+    <div id="recipePhotoStrip" class="photo-strip hidden"></div>
+    <h2 class="section-title">Ingredients</h2>
+    <div id="recipeIngredients" class="card ingredient-list"></div>
+    <h2 class="section-title">Method</h2>
+    <div id="recipeSteps" class="steps"></div>
   </main>
   <footer>Shared from Pomegranate &middot; view only, no account needed</footer>
 </div>
@@ -527,6 +641,7 @@ function aisleFor(name) {
 }
 
 const token = new URLSearchParams(location.search).get("list");
+const recipeToken = new URLSearchParams(location.search).get("recipe");
 
 const loadingEl = document.getElementById("loading");
 const notFoundEl = document.getElementById("notfound");
@@ -545,6 +660,18 @@ const fireworksEl = document.getElementById("fireworks");
 const celebrateNameEl = document.getElementById("celebrateName");
 const celebrationCompleteBtn = document.getElementById("celebrationCompleteBtn");
 const celebrationNotYetBtn = document.getElementById("celebrationNotYetBtn");
+
+const recipeAppEl = document.getElementById("recipeApp");
+const recipeNameEl = document.getElementById("recipeName");
+const recipeMetaEl = document.getElementById("recipeMeta");
+const recipeHeroEl = document.getElementById("recipeHero");
+const recipeHeroImgEl = document.getElementById("recipeHeroImg");
+const recipeTagsEl = document.getElementById("recipeTags");
+const recipeSourceEl = document.getElementById("recipeSource");
+const recipeSourceLabelEl = document.getElementById("recipeSourceLabel");
+const recipePhotoStripEl = document.getElementById("recipePhotoStrip");
+const recipeIngredientsEl = document.getElementById("recipeIngredients");
+const recipeStepsEl = document.getElementById("recipeSteps");
 
 // The list from the last successful fetch — toggle()/the celebration
 // trigger/the complete-button visibility all read this rather than
@@ -842,6 +969,7 @@ buildFireworks();
 
 function render(list) {
   currentList = list;
+  document.title = (list.name || "Shopping list") + " · Pomegranate";
   nameEl.textContent = list.name || "Shopping list";
 
   if (list.completed) {
@@ -973,7 +1101,129 @@ async function load() {
   flushAllPending();
 }
 
-load();
+// --- Shared recipe page ---------------------------------------------
+// Read-only: a recipe has no ticking/completion/live-collaboration
+// concerns the way a list does, so this is just a fetch-and-render, no
+// polling or offline-retry machinery needed.
+
+function plural(count, word) {
+  return count + " " + word + (count === 1 ? "" : "s");
+}
+
+function countLine(ingredientCount, stepCount) {
+  return plural(ingredientCount, "ingredient") + " · " + plural(stepCount, "step");
+}
+
+// Mirrors qtyOf() in app/src/lib/format.ts.
+function qtyOf(qty, unit) {
+  return [qty, unit].filter(Boolean).join(" ") || "—";
+}
+
+// Mirrors hostFromUrl() in app/src/lib/recipeExtraction.ts.
+function hostFromUrl(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./i, "");
+  } catch {
+    return url.replace(/^https?:\/\//i, "").replace(/^www\./i, "").split("/")[0];
+  }
+}
+
+function renderRecipe(recipe) {
+  document.title = (recipe.title || "Recipe") + " · Pomegranate";
+  recipeNameEl.textContent = recipe.title || "Recipe";
+  recipeMetaEl.textContent = countLine((recipe.ingredients || []).length, (recipe.steps || []).length);
+
+  const photos = recipe.photo_urls || [];
+  if (photos[0]) {
+    recipeHeroImgEl.src = photos[0];
+    recipeHeroEl.classList.remove("hidden");
+  } else {
+    recipeHeroEl.classList.add("hidden");
+  }
+
+  recipeTagsEl.innerHTML = "";
+  (recipe.tags || []).forEach((tag) => {
+    const pill = document.createElement("span");
+    pill.className = "tag-pill";
+    pill.textContent = tag;
+    recipeTagsEl.appendChild(pill);
+  });
+
+  if (recipe.source_url) {
+    recipeSourceEl.href = recipe.source_url;
+    recipeSourceLabelEl.textContent = hostFromUrl(recipe.source_url);
+    recipeSourceEl.classList.remove("hidden");
+  } else {
+    recipeSourceEl.classList.add("hidden");
+  }
+
+  recipePhotoStripEl.innerHTML = "";
+  if (photos.length > 1) {
+    photos.forEach((url) => {
+      const img = document.createElement("img");
+      img.className = "strip-photo";
+      img.src = url;
+      img.alt = "";
+      recipePhotoStripEl.appendChild(img);
+    });
+    recipePhotoStripEl.classList.remove("hidden");
+  } else {
+    recipePhotoStripEl.classList.add("hidden");
+  }
+
+  recipeIngredientsEl.innerHTML = "";
+  (recipe.ingredients || []).forEach((ing) => {
+    const row = document.createElement("div");
+    row.className = "ingredient-row";
+    const name = document.createElement("div");
+    name.className = "ingredient-name";
+    name.textContent = ing.name;
+    const qty = document.createElement("div");
+    qty.className = "ingredient-qty";
+    qty.textContent = qtyOf(ing.qty, ing.unit);
+    row.appendChild(name);
+    row.appendChild(qty);
+    recipeIngredientsEl.appendChild(row);
+  });
+
+  recipeStepsEl.innerHTML = "";
+  (recipe.steps || []).forEach((text, i) => {
+    const row = document.createElement("div");
+    row.className = "step-row";
+    const badge = document.createElement("div");
+    badge.className = "step-badge";
+    badge.textContent = String(i + 1);
+    const stepText = document.createElement("div");
+    stepText.className = "step-text";
+    stepText.textContent = text;
+    row.appendChild(badge);
+    row.appendChild(stepText);
+    recipeStepsEl.appendChild(row);
+  });
+
+  loadingEl.classList.add("hidden");
+  notFoundEl.classList.add("hidden");
+  recipeAppEl.classList.remove("hidden");
+}
+
+async function loadRecipe() {
+  const { data, error } = await supabase.rpc("get_shared_recipe", { p_token: recipeToken });
+  if (error || !data || data.length === 0) {
+    loadingEl.classList.add("hidden");
+    notFoundEl.classList.remove("hidden");
+    return;
+  }
+  renderRecipe(data[0]);
+}
+
+if (token) {
+  load();
+} else if (recipeToken) {
+  loadRecipe();
+} else {
+  loadingEl.classList.add("hidden");
+  notFoundEl.classList.remove("hidden");
+}
 </script>
 </body>
 </html>
