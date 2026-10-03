@@ -23,8 +23,7 @@
     --teal: #03525B;
     --teal-soft: #DCEEEC;
     --teal-soft-ink: #123F41;
-    --error-bg: rgba(153,0,77,0.08);
-    --error-ink: #99004D;
+    --pending: #9C6B1F;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
@@ -142,6 +141,20 @@
     padding-left: 8px;
   }
   .item.done .qty { color: var(--done); }
+  /* A tap that hasn't reached the server yet (poor signal, offline) still
+     shows as ticked — this small dot is the only hint it's not saved yet. */
+  .item.pending .box { position: relative; }
+  .item.pending .box::after {
+    content: "";
+    position: absolute;
+    top: -3px;
+    right: -3px;
+    width: 9px;
+    height: 9px;
+    border-radius: 999px;
+    background: var(--pending);
+    border: 2px solid var(--card);
+  }
   .state {
     max-width: 420px;
     margin: 20vh auto 0;
@@ -156,15 +169,22 @@
     color: var(--muted);
     padding: 28px 18px 40px;
   }
-  .error-banner {
-    max-width: 560px;
-    margin: 10px auto 0;
-    padding: 10px 14px;
-    background: var(--error-bg);
-    color: var(--error-ink);
-    border-radius: 10px;
+  /* Pinned to the viewport (not the document) so it stays visible while
+     scrolling a long list — this matters while actively shopping. */
+  .sync-banner {
+    position: fixed;
+    left: 14px;
+    right: 14px;
+    bottom: 14px;
+    z-index: 6;
+    padding: 11px 16px;
+    background: var(--pending);
+    color: #fff;
+    border-radius: 12px;
     font-size: 13px;
+    font-weight: 600;
     text-align: center;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.18);
   }
   .hidden { display: none !important; }
 </style>
@@ -190,7 +210,7 @@
   <footer>Shared from Pomegranate &middot; view only, no account needed</footer>
 </div>
 
-<div id="errorBanner" class="error-banner hidden"></div>
+<div id="syncBanner" class="sync-banner hidden"></div>
 
 <script type="module">
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
@@ -327,13 +347,123 @@ const notFoundEl = document.getElementById("notfound");
 const appEl = document.getElementById("app");
 const nameEl = document.getElementById("listName");
 const groupsEl = document.getElementById("groups");
-const errorEl = document.getElementById("errorBanner");
+const syncBannerEl = document.getElementById("syncBanner");
 
-function showError(message) {
-  errorEl.textContent = message;
-  errorEl.classList.remove("hidden");
-  setTimeout(() => errorEl.classList.add("hidden"), 3500);
+// --- Offline-tolerant ticking ------------------------------------------
+// toggle_shared_item FLIPS whatever the server currently has, rather than
+// setting an absolute value — so a tap that hasn't reached the server yet
+// is just "one flip call still owed" for that key. Any number of taps on
+// the same item while offline are flip-commutative (flip, flip, flip =
+// net odd/even), so they're tracked as a simple count per key rather than
+// an ordered log, and nothing is ever reverted on failure: the UI keeps
+// whatever the person tapped and keeps retrying underneath until it
+// actually lands, surviving a reload via localStorage in the meantime.
+const PENDING_STORAGE_KEY = "pomegranate-pending-" + token;
+let pendingFlips = {}; // key -> count of flip calls not yet confirmed saved
+const retryTimers = {};
+const retryAttempts = {};
+const flushingKeys = new Set();
+const RETRY_DELAYS_MS = [2000, 4000, 8000, 15000, 30000];
+
+function loadPending() {
+  try {
+    const raw = localStorage.getItem(PENDING_STORAGE_KEY);
+    pendingFlips = raw ? JSON.parse(raw) : {};
+  } catch {
+    pendingFlips = {};
+  }
 }
+
+function savePending() {
+  try {
+    if (Object.keys(pendingFlips).length === 0) {
+      localStorage.removeItem(PENDING_STORAGE_KEY);
+    } else {
+      localStorage.setItem(PENDING_STORAGE_KEY, JSON.stringify(pendingFlips));
+    }
+  } catch {
+    // Private browsing / storage disabled — pending state just won't
+    // survive a reload; the in-memory retry loop still works this session.
+  }
+}
+
+function desiredDone(key, serverDone) {
+  const n = pendingFlips[key] || 0;
+  return n % 2 === 1 ? !serverDone : serverDone;
+}
+
+function updateSyncBanner() {
+  const count = Object.keys(pendingFlips).length;
+  if (count === 0) {
+    syncBannerEl.classList.add("hidden");
+    return;
+  }
+  const what = count === 1 ? "1 change" : count + " changes";
+  syncBannerEl.textContent = navigator.onLine
+    ? "Saving " + what + "…"
+    : "No connection — " + what + " will sync once you're back online";
+  syncBannerEl.classList.remove("hidden");
+}
+
+function setRowPending(key, isPending) {
+  const row = groupsEl.querySelector('[data-key="' + CSS.escape(key) + '"]');
+  if (row) row.classList.toggle("pending", isPending);
+}
+
+async function attemptFlush(key) {
+  if (!pendingFlips[key] || flushingKeys.has(key)) return;
+  if (retryTimers[key]) {
+    clearTimeout(retryTimers[key]);
+    delete retryTimers[key];
+  }
+  flushingKeys.add(key);
+  let result;
+  try {
+    result = await supabase.rpc("toggle_shared_item", { p_token: token, p_key: key });
+  } catch (e) {
+    result = { error: e };
+  }
+  flushingKeys.delete(key);
+
+  if (result.error) {
+    scheduleRetry(key);
+    return;
+  }
+
+  retryAttempts[key] = 0;
+  pendingFlips[key]--;
+  if (pendingFlips[key] <= 0) {
+    delete pendingFlips[key];
+    savePending();
+    setRowPending(key, false);
+    updateSyncBanner();
+  } else {
+    savePending();
+    attemptFlush(key);
+  }
+}
+
+function scheduleRetry(key) {
+  updateSyncBanner();
+  if (retryTimers[key]) return;
+  const attempt = retryAttempts[key] || 0;
+  retryAttempts[key] = attempt + 1;
+  const delay = RETRY_DELAYS_MS[Math.min(attempt, RETRY_DELAYS_MS.length - 1)];
+  retryTimers[key] = setTimeout(() => {
+    delete retryTimers[key];
+    attemptFlush(key);
+  }, delay);
+}
+
+function flushAllPending() {
+  Object.keys(pendingFlips).forEach((key) => attemptFlush(key));
+}
+
+window.addEventListener("online", () => {
+  updateSyncBanner();
+  flushAllPending();
+});
+window.addEventListener("offline", updateSyncBanner);
 
 function checkIcon() {
   return '<svg viewBox="0 0 24 24"><polyline points="4 13 9 18 20 6"/></svg>';
@@ -348,7 +478,8 @@ function hasRealQty(qty) {
 
 function renderItem(key, name, qty, done) {
   const row = document.createElement("div");
-  row.className = "item" + (done ? " done" : "");
+  const isPending = !!pendingFlips[key];
+  row.className = "item" + (done ? " done" : "") + (isPending ? " pending" : "");
   row.dataset.key = key;
   const showQty = hasRealQty(qty);
   row.innerHTML =
@@ -357,7 +488,7 @@ function renderItem(key, name, qty, done) {
     (showQty ? '<div class="qty"></div>' : "");
   row.querySelector(".name").textContent = name;
   if (showQty) row.querySelector(".qty").textContent = qty;
-  row.addEventListener("click", () => toggle(row, key));
+  row.addEventListener("click", () => toggle(key));
   return row;
 }
 
@@ -367,20 +498,26 @@ function render(list) {
   const buckets = {};
   (list.items || []).forEach((it) => {
     const aisle = it.aisle || "Everything else";
-    (buckets[aisle] = buckets[aisle] || []).push({ key: it.key, name: it.name, qty: it.qty, done: !!it.done });
+    (buckets[aisle] = buckets[aisle] || []).push({
+      key: it.key,
+      name: it.name,
+      qty: it.qty,
+      done: desiredDone(it.key, !!it.done),
+    });
   });
   // Same rule as buildAisleGroups() in the app: a recognized ingredient
   // (e.g. "Milk") goes to its real aisle; anything unrecognized falls to
   // "Non-food" rather than "Everything else" — an ad-hoc extra with no food
   // match is more likely a household item than an unrecognized ingredient.
   (list.extras || []).forEach((it, i) => {
+    const key = "extra-" + i;
     const matched = aisleFor(it.name);
     const aisle = matched === "Everything else" ? "Non-food" : matched;
     (buckets[aisle] = buckets[aisle] || []).push({
-      key: "extra-" + i,
+      key,
       name: it.name,
       qty: it.qty,
-      done: !!it.done,
+      done: desiredDone(key, !!it.done),
     });
   });
 
@@ -406,23 +543,18 @@ function render(list) {
   appEl.classList.remove("hidden");
 }
 
-// Tracks in-flight toggles so a poll landing mid-tap doesn't rebuild the
-// list out from under an optimistic tick and cause a visual flicker.
-let pendingToggles = 0;
-
-async function toggle(row, key) {
-  const wasDone = row.classList.contains("done");
-  row.classList.toggle("done");
-  pendingToggles++;
-  try {
-    const { error } = await supabase.rpc("toggle_shared_item", { p_token: token, p_key: key });
-    if (error) {
-      row.classList.toggle("done", wasDone);
-      showError("Couldn't save that — check your connection and try again.");
-    }
-  } finally {
-    pendingToggles--;
-  }
+// Flips immediately and keeps the tap's result showing no matter what —
+// never reverted on failure. The actual save is handed off to
+// attemptFlush()/scheduleRetry(), which keep trying in the background
+// (see the "Offline-tolerant ticking" block above) until it lands.
+function toggle(key) {
+  pendingFlips[key] = (pendingFlips[key] || 0) + 1;
+  savePending();
+  setRowPending(key, true);
+  updateSyncBanner();
+  const row = groupsEl.querySelector('[data-key="' + CSS.escape(key) + '"]');
+  if (row) row.classList.toggle("done");
+  attemptFlush(key);
 }
 
 async function fetchAndRender() {
@@ -444,8 +576,10 @@ function startPolling() {
   // Someone else (husband, partner) ticking items off elsewhere shows up
   // here without a manual reload — every 30s, and immediately whenever the
   // tab/screen comes back into view rather than waiting out the rest of it.
+  // Any still-pending taps of our own aren't lost: render() re-applies
+  // desiredDone() over whatever this fetch returns.
   pollTimer = setInterval(() => {
-    if (!document.hidden && pendingToggles === 0) fetchAndRender();
+    if (!document.hidden) fetchAndRender();
   }, 30000);
 }
 
@@ -456,7 +590,9 @@ function stopPolling() {
 }
 
 document.addEventListener("visibilitychange", () => {
-  if (!document.hidden && pollTimer) fetchAndRender();
+  if (document.hidden) return;
+  if (pollTimer) fetchAndRender();
+  flushAllPending();
 });
 
 async function load() {
@@ -465,9 +601,12 @@ async function load() {
     notFoundEl.classList.remove("hidden");
     return;
   }
+  loadPending();
+  updateSyncBanner();
   await fetchAndRender();
   if (appEl.classList.contains("hidden")) return;
   startPolling();
+  flushAllPending();
 }
 
 load();
