@@ -395,15 +395,58 @@ function render(list) {
   appEl.classList.remove("hidden");
 }
 
+// Tracks in-flight toggles so a poll landing mid-tap doesn't rebuild the
+// list out from under an optimistic tick and cause a visual flicker.
+let pendingToggles = 0;
+
 async function toggle(row, key) {
   const wasDone = row.classList.contains("done");
   row.classList.toggle("done");
-  const { error } = await supabase.rpc("toggle_shared_item", { p_token: token, p_key: key });
-  if (error) {
-    row.classList.toggle("done", wasDone);
-    showError("Couldn't save that — check your connection and try again.");
+  pendingToggles++;
+  try {
+    const { error } = await supabase.rpc("toggle_shared_item", { p_token: token, p_key: key });
+    if (error) {
+      row.classList.toggle("done", wasDone);
+      showError("Couldn't save that — check your connection and try again.");
+    }
+  } finally {
+    pendingToggles--;
   }
 }
+
+async function fetchAndRender() {
+  const { data, error } = await supabase.rpc("get_shared_list", { p_token: token });
+  if (error || !data || data.length === 0) {
+    stopPolling();
+    appEl.classList.add("hidden");
+    loadingEl.classList.add("hidden");
+    notFoundEl.classList.remove("hidden");
+    return;
+  }
+  render(data[0]);
+}
+
+let pollTimer = null;
+
+function startPolling() {
+  if (pollTimer) return;
+  // Someone else (husband, partner) ticking items off elsewhere shows up
+  // here without a manual reload — every 30s, and immediately whenever the
+  // tab/screen comes back into view rather than waiting out the rest of it.
+  pollTimer = setInterval(() => {
+    if (!document.hidden && pendingToggles === 0) fetchAndRender();
+  }, 30000);
+}
+
+function stopPolling() {
+  if (!pollTimer) return;
+  clearInterval(pollTimer);
+  pollTimer = null;
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && pollTimer) fetchAndRender();
+});
 
 async function load() {
   if (!token) {
@@ -411,13 +454,9 @@ async function load() {
     notFoundEl.classList.remove("hidden");
     return;
   }
-  const { data, error } = await supabase.rpc("get_shared_list", { p_token: token });
-  if (error || !data || data.length === 0) {
-    loadingEl.classList.add("hidden");
-    notFoundEl.classList.remove("hidden");
-    return;
-  }
-  render(data[0]);
+  await fetchAndRender();
+  if (appEl.classList.contains("hidden")) return;
+  startPolling();
 }
 
 load();
