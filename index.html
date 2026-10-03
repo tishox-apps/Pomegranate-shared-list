@@ -327,6 +327,14 @@
     color: var(--muted);
     text-align: center;
   }
+  .disclaimer {
+    margin-top: 6px;
+    font-size: 10px;
+    line-height: 1.45;
+    max-width: 480px;
+    margin-left: auto;
+    margin-right: auto;
+  }
   #recipeCredit {
     width: min(210mm, calc(100vw - 24px));
     margin: 0 auto 34px;
@@ -562,7 +570,10 @@
         <div id="recipeSteps" class="steps"></div>
       </section>
     </div>
-    <div class="page-footer" id="recipeFooter"></div>
+    <div class="page-footer">
+      <div id="recipeFooter"></div>
+      <div class="disclaimer">This recipe is from a personal collection and may include photos or instructions adapted from recipes found publicly online. Shared for personal, non-commercial use only.</div>
+    </div>
   </div>
   <div id="recipeCredit" class="credit no-print"></div>
 </div>
