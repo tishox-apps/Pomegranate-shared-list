@@ -335,17 +335,25 @@ function checkIcon() {
   return '<svg viewBox="0 0 24 24"><polyline points="4 13 9 18 20 6"/></svg>';
 }
 
+// buildItems() in the app stores "—" as a placeholder when an ingredient
+// has no real, summable quantity — shown inline next to the name there, but
+// worth hiding entirely here rather than giving it its own line for just a dash.
+function hasRealQty(qty) {
+  return !!qty && qty !== "—";
+}
+
 function renderItem(key, name, qty, done) {
   const row = document.createElement("div");
   row.className = "item" + (done ? " done" : "");
   row.dataset.key = key;
+  const showQty = hasRealQty(qty);
   row.innerHTML =
     '<div class="box">' + checkIcon() + "</div>" +
     '<div class="text"><div class="name"></div>' +
-    (qty ? '<div class="qty"></div>' : "") +
+    (showQty ? '<div class="qty"></div>' : "") +
     "</div>";
   row.querySelector(".name").textContent = name;
-  if (qty) row.querySelector(".qty").textContent = qty;
+  if (showQty) row.querySelector(".qty").textContent = qty;
   row.addEventListener("click", () => toggle(row, key));
   return row;
 }
