@@ -134,10 +134,14 @@
     text-decoration: line-through;
   }
   .qty {
-    font-size: 13px;
-    color: var(--muted);
-    margin-top: 1px;
+    flex: 0 0 auto;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--teal);
+    white-space: nowrap;
+    padding-left: 8px;
   }
+  .item.done .qty { color: var(--done); }
   .state {
     max-width: 420px;
     margin: 20vh auto 0;
@@ -349,9 +353,8 @@ function renderItem(key, name, qty, done) {
   const showQty = hasRealQty(qty);
   row.innerHTML =
     '<div class="box">' + checkIcon() + "</div>" +
-    '<div class="text"><div class="name"></div>' +
-    (showQty ? '<div class="qty"></div>' : "") +
-    "</div>";
+    '<div class="text"><div class="name"></div></div>' +
+    (showQty ? '<div class="qty"></div>' : "");
   row.querySelector(".name").textContent = name;
   if (showQty) row.querySelector(".qty").textContent = qty;
   row.addEventListener("click", () => toggle(row, key));
