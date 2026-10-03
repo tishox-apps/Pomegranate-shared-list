@@ -201,23 +201,120 @@ const SUPABASE_KEY = "sb_publishable_GOxogJ6wnmUNaSYE-_k5LA_UilEJ59y";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// Matches AISLE_ORDER in the app (src/lib/shopping.ts) so sections appear
-// in the same walking-the-shop order as the Pomegranate app itself.
-const AISLE_ORDER = [
-  "Fruit & veg",
-  "Meat & fish",
-  "Dairy & chilled",
-  "Bakery",
-  "Dry & tinned",
-  "Oils, sauces & spices",
-  "Drinks",
-  "Everything else",
-  "Non-food",
+// Ported from app/src/lib/shopping.ts (AISLES / aisleFor / AISLE_ORDER) so an
+// ad-hoc extra like "Milk" lands in the same real aisle here as it does in
+// the app, rather than a generic catch-all. Keep this in sync with that file.
+const AISLES = [
+  [
+    "Fruit & veg",
+    [
+      "pear", "apple", "lemon", "lime", "onion", "shallot", "carrot", "celery", "garlic",
+      "ginger", "potato", "tomato", "broccoli", "cabbage", "spinach", "greens",
+      "spring onion", "herb", "tarragon", "coriander", "parsley", "basil", "oregano",
+      "thyme", "chilli", "pepper", "mushroom", "banana", "berry", "avocado", "cucumber",
+      "courgette", "aubergine", "leek", "salad", "lettuce",
+      "orange", "mandarin", "grapefruit", "grape", "melon", "rockmelon", "watermelon",
+      "pineapple", "mango", "kiwifruit", "peach", "nectarine", "plum", "cherry", "fig",
+      "pomegranate", "passionfruit", "rhubarb", "date", "capsicum", "eggplant", "zucchini",
+      "pumpkin", "squash", "sweet potato", "beetroot", "radish", "turnip", "parsnip",
+      "swede", "cauliflower", "kale", "bok choy", "silverbeet", "chard", "rocket",
+      "watercress", "fennel", "asparagus", "artichoke", "sprout", "corn", "sweetcorn",
+      "snow pea", "sugar snap pea", "pea", "chive", "mint", "dill", "sage", "rosemary",
+      "lemongrass", "jalapeno", "scallion",
+    ],
+  ],
+  [
+    "Meat & fish",
+    [
+      "chicken", "beef", "pork", "lamb", "shin", "thigh", "breast", "mince", "bacon",
+      "pancetta", "sausage", "crab", "prawn", "fish", "salmon", "cod", "tuna", "duck",
+      "turkey", "veal", "venison", "rump", "sirloin", "fillet", "ribeye", "steak", "chop",
+      "cutlet", "drumstick", "wing", "ham", "prosciutto", "chorizo", "salami", "pastrami",
+      "pepperoni", "mortadella", "lobster", "oyster", "mussel", "scallop", "squid",
+      "calamari", "octopus", "anchovy", "sardine", "trout", "snapper", "barramundi",
+      "haddock", "mackerel", "kingfish",
+    ],
+  ],
+  [
+    "Dairy & chilled",
+    [
+      "milk", "butter", "cream", "crème", "cheese", "parmesan", "yoghurt", "yogurt", "egg",
+      "mascarpone", "ricotta", "mozzarella", "cheddar", "feta", "haloumi", "brie",
+      "camembert", "gouda", "cottage cheese", "cream cheese", "sour cream", "custard",
+      "tofu", "tempeh", "margarine", "ghee", "buttermilk", "kefir", "soy milk",
+      "almond milk", "oat milk",
+    ],
+  ],
+  [
+    "Bakery",
+    [
+      "bread", "loaf", "baguette", "roll", "brioche", "pitta", "tortilla", "pastry",
+      "bun", "muffin", "croissant", "bagel", "scone", "crumpet", "naan", "flatbread",
+      "wrap", "pita", "sourdough", "ciabatta", "focaccia", "crouton", "puff pastry",
+      "shortcrust", "filo",
+    ],
+  ],
+  [
+    "Dry & tinned",
+    [
+      "flour", "sugar", "rice", "noodle", "pasta", "spaghetti", "lentil", "bean",
+      "chickpea", "passata", "tin", "tinned", "stock", "peanut butter", "oat", "couscous",
+      "breadcrumb", "almond", "nut", "peanut", "sesame", "raisin", "apricot", "honey",
+      "yeast", "cocoa", "chocolate",
+      "quinoa", "barley", "buckwheat", "polenta", "cornflour", "baking powder", "bicarb",
+      "vanilla", "jam", "marmalade", "spread", "muesli", "cereal", "cornflakes", "granola",
+      "cracker", "crisps", "pretzel", "popcorn", "sultana", "prune", "walnut", "cashew",
+      "pistachio", "pecan", "macadamia", "hazelnut", "baked beans", "coconut milk", "soup",
+      "stock cube", "bouillon",
+    ],
+  ],
+  [
+    "Oils, sauces & spices",
+    [
+      "oil", "vinegar", "soy", "mustard", "dijon", "ketchup", "miso", "fish sauce",
+      "paste", "curry", "ras el hanout", "cumin", "turmeric", "paprika", "cinnamon",
+      "salt", "spice", "sauce", "mayonnaise", "tahini",
+      "worcestershire", "sriracha", "hoisin", "oyster sauce", "sesame oil", "olive oil",
+      "balsamic", "peppercorn", "black pepper", "nutmeg", "clove", "cardamom", "bay leaf",
+      "chilli flake", "chili powder", "garam masala", "five spice", "star anise",
+      "saffron", "caper", "pickle", "relish", "chutney", "gravy",
+    ],
+  ],
+  [
+    "Drinks",
+    [
+      "wine", "beer", "juice", "water", "coffee", "tea", "cordial",
+      "soda", "lemonade", "kombucha", "cider", "whisky", "vodka", "gin", "rum", "tonic",
+      "smoothie",
+    ],
+  ],
 ];
-// Ad-hoc extras added by the list owner aren't re-classified into an aisle
-// here (the app's aisleFor() keyword list is sizeable and lives in the
-// main app repo) — they're grouped together under their own heading.
-const EXTRAS_GROUP = "Added by the list owner";
+const AISLE_ORDER = AISLES.map(([name]) => name).concat(["Everything else", "Non-food"]);
+
+function escapeRegExp(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function aisleFor(name) {
+  const n = (name || "").toLowerCase();
+  let best = null;
+  AISLES.forEach(([aisle, words]) => {
+    words.forEach((w) => {
+      const pattern = new RegExp("\\b" + escapeRegExp(w) + "(?:es|s)?\\b", "g");
+      let at = -1;
+      let match;
+      while ((match = pattern.exec(n))) {
+        at = match.index;
+      }
+      if (at === -1) return;
+      const hit = { aisle, words: w.split(" ").length, at };
+      if (!best || hit.words > best.words || (hit.words === best.words && hit.at > best.at)) {
+        best = hit;
+      }
+    });
+  });
+  return best ? best.aisle : "Everything else";
+}
 
 const token = new URLSearchParams(location.search).get("list");
 
@@ -261,18 +358,23 @@ function render(list) {
     const aisle = it.aisle || "Everything else";
     (buckets[aisle] = buckets[aisle] || []).push({ key: it.key, name: it.name, qty: it.qty, done: !!it.done });
   });
-  const extras = (list.extras || []).map((it, i) => ({
-    key: "extra-" + i,
-    name: it.name,
-    qty: it.qty,
-    done: !!it.done,
-  }));
-  if (extras.length) buckets[EXTRAS_GROUP] = extras;
-
-  const order = AISLE_ORDER.concat([EXTRAS_GROUP]);
+  // Same rule as buildAisleGroups() in the app: a recognized ingredient
+  // (e.g. "Milk") goes to its real aisle; anything unrecognized falls to
+  // "Non-food" rather than "Everything else" — an ad-hoc extra with no food
+  // match is more likely a household item than an unrecognized ingredient.
+  (list.extras || []).forEach((it, i) => {
+    const matched = aisleFor(it.name);
+    const aisle = matched === "Everything else" ? "Non-food" : matched;
+    (buckets[aisle] = buckets[aisle] || []).push({
+      key: "extra-" + i,
+      name: it.name,
+      qty: it.qty,
+      done: !!it.done,
+    });
+  });
 
   groupsEl.innerHTML = "";
-  order
+  AISLE_ORDER
     .filter((a) => buckets[a] && buckets[a].length)
     .forEach((aisle) => {
       const items = buckets[aisle];
