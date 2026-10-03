@@ -571,7 +571,7 @@
         <div id="recipeSteps" class="steps"></div>
       </section>
     </div>
-    <div class="page-footer">Shared via the Pomegranate app</div>
+    <div class="page-footer" id="recipeFooter"></div>
   </div>
   <div id="recipeCredit" class="credit no-print"></div>
 </div>
@@ -754,10 +754,12 @@ const recipePhotoStripEl = document.getElementById("recipePhotoStrip");
 const recipeIngredientsEl = document.getElementById("recipeIngredients");
 const recipeStepsEl = document.getElementById("recipeSteps");
 const recipeCreditEl = document.getElementById("recipeCredit");
+const recipeFooterEl = document.getElementById("recipeFooter");
 const printButtonEl = document.getElementById("printButton");
 printButtonEl.addEventListener("click", () => window.print());
 
-// Shared by both views. Built with createElement/textContent, never
+// Used by the list page's footer, and by the recipe page's on-screen (never
+// printed) credit line. Built with createElement/textContent, never
 // innerHTML — the owner's display name is user-controlled data (set via
 // their Google account) rendered to any anonymous visitor of their shared
 // link, so it's never safe to interpolate into an HTML string.
@@ -779,6 +781,23 @@ function renderCredit(container, sharedByName) {
   link.rel = "noopener";
   link.textContent = "Learn about the app →";
   container.appendChild(link);
+}
+
+// Used by the recipe page's printed footer (inside .page, no link — a link
+// is useless on paper). The name belongs on the document itself; the
+// generic "Learn about the app" pitch lives separately in the on-screen
+// recipeCredit line below the page instead, via renderCredit() with no name.
+function renderFooterCredit(container, sharedByName) {
+  container.innerHTML = "";
+  if (sharedByName) {
+    container.appendChild(document.createTextNode("Shared by "));
+    const strong = document.createElement("strong");
+    strong.textContent = sharedByName;
+    container.appendChild(strong);
+    container.appendChild(document.createTextNode(" from the Pomegranate app"));
+  } else {
+    container.appendChild(document.createTextNode("Shared via the Pomegranate app"));
+  }
 }
 
 // The list from the last successful fetch — toggle()/the celebration
@@ -1235,7 +1254,8 @@ function renderRecipe(recipe) {
   document.title = (recipe.title || "Recipe") + " · Pomegranate";
   recipeNameEl.textContent = recipe.title || "Recipe";
   recipeMetaEl.textContent = countLine((recipe.ingredients || []).length, (recipe.steps || []).length);
-  renderCredit(recipeCreditEl, recipe.shared_by);
+  renderFooterCredit(recipeFooterEl, recipe.shared_by);
+  renderCredit(recipeCreditEl, null);
 
   const photos = recipe.photo_urls || [];
   if (photos[0]) {
