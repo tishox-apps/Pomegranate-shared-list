@@ -728,6 +728,7 @@ const loadingEl = document.getElementById("loading");
 const notFoundEl = document.getElementById("notfound");
 const appEl = document.getElementById("app");
 const nameEl = document.getElementById("listName");
+const listHintEl = document.getElementById("listHint");
 const mainEl = document.getElementById("main");
 const groupsEl = document.getElementById("groups");
 const syncBannerEl = document.getElementById("syncBanner");
@@ -1079,6 +1080,9 @@ function render(list) {
   document.title = (list.name || "Shopping list") + " · Pomegranate";
   nameEl.textContent = list.name || "Shopping list";
   renderCredit(listCreditEl, list.shared_by);
+  // "Tap an item to tick it off" is actively wrong once the list is locked
+  // (items aren't tappable any more).
+  listHintEl.textContent = list.completed ? "Locked for reference." : "Tap an item to tick it off.";
 
   if (list.completed) {
     hideCelebration();
