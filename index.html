@@ -24,6 +24,10 @@
     --teal-soft: #DCEEEC;
     --teal-soft-ink: #123F41;
     --pending: #9C6B1F;
+    --locked-bg: rgba(3,82,91,0.09);
+    --locked-sub: #3E5A5C;
+    --error-ink: #99004D;
+    --error-bg: rgba(153,0,77,0.08);
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
@@ -187,6 +191,163 @@
     box-shadow: 0 6px 20px rgba(0,0,0,0.18);
   }
   .hidden { display: none !important; }
+
+  /* Locked (completed) list ---------------------------------------- */
+  .locked-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--locked-bg);
+    border-radius: 14px;
+    padding: 14px 15px;
+    margin-bottom: 20px;
+  }
+  .locked-icon {
+    flex: 0 0 30px;
+    width: 30px;
+    height: 30px;
+    border-radius: 999px;
+    background: var(--teal);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    font-weight: 700;
+  }
+  .locked-text { flex: 1; min-width: 0; }
+  .locked-title { font-size: 14px; font-weight: 700; color: var(--teal); }
+  .locked-body { font-size: 12px; color: var(--locked-sub); margin-top: 3px; line-height: 1.45; }
+  .reopen-button {
+    flex: 0 0 auto;
+    height: 36px;
+    padding: 0 13px;
+    border-radius: 10px;
+    border: 1.5px solid rgba(3,82,91,0.35);
+    background: none;
+    color: var(--teal);
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  main.locked .item { cursor: default; }
+  main.locked .item:active { background: none; }
+
+  .complete-button {
+    width: 100%;
+    height: 52px;
+    border-radius: 13px;
+    border: none;
+    background: var(--accent);
+    color: var(--accent-ink);
+    font: inherit;
+    font-size: 14.5px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-bottom: 20px;
+  }
+
+  /* One-off transient message (e.g. completing failed) — distinct from the
+     persistent sync-status banner, which only ever talks about pending ticks. */
+  .toast {
+    position: fixed;
+    left: 14px;
+    right: 14px;
+    bottom: 14px;
+    z-index: 7;
+    padding: 11px 16px;
+    background: var(--error-ink);
+    color: #fff;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.18);
+  }
+
+  /* Completion celebration --------------------------------------------- */
+  @keyframes pgBurst { 0% { transform:translate(0,0) scale(1); opacity:0 } 8% { opacity:1 } 70% { opacity:1 } 100% { transform:translate(var(--dx),calc(var(--dy) + 34px)) scale(.35); opacity:0 } }
+  @keyframes pgFlash { 0% { transform:scale(.2); opacity:0 } 10% { opacity:.9 } 100% { transform:scale(2.4); opacity:0 } }
+  @keyframes pgFade { from { opacity:0 } to { opacity:1 } }
+  @keyframes pgPop { 0% { transform:translateY(24px) scale(.92); opacity:0 } 60% { transform:translateY(-4px) scale(1.02); opacity:1 } 100% { transform:none; opacity:1 } }
+
+  .celebration {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    background: rgba(11,24,25,0.82);
+    animation: pgFade 0.3s ease-out both;
+  }
+  .fireworks { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+  @media (prefers-reduced-motion: reduce) {
+    .fireworks { display: none; }
+  }
+  .burst { position: absolute; width: 0; height: 0; }
+  .flash {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    margin-left: -30px;
+    margin-top: -30px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(244,242,236,0.55), rgba(244,242,236,0) 65%);
+    opacity: 0;
+    animation: pgFlash 2.4s ease-out infinite;
+  }
+  .particle {
+    position: absolute;
+    border-radius: 50%;
+    opacity: 0;
+    animation: pgBurst 2.4s cubic-bezier(.12,.75,.3,1) infinite;
+  }
+  .celebration-card {
+    position: absolute;
+    left: 18px;
+    right: 18px;
+    bottom: 28px;
+    background: var(--bg);
+    border-radius: 24px;
+    padding: 28px 22px 20px;
+    text-align: center;
+    animation: pgPop 0.5s cubic-bezier(.2,.9,.3,1.2) 0.15s both;
+  }
+  .celebration-tick {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto;
+    border-radius: 999px;
+    background: var(--teal);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+    font-weight: 700;
+  }
+  .celebration-title {
+    font-weight: 800;
+    font-size: 30px;
+    color: var(--ink);
+    letter-spacing: -0.02em;
+    margin: 16px 0 0;
+  }
+  .celebration-body { margin: 10px 0 0; font-size: 14px; line-height: 1.55; color: var(--muted); }
+  .celebration-body strong { color: var(--ink); }
+  .celebration-note { margin: 6px 0 0; font-size: 12px; line-height: 1.5; color: #8A9291; }
+  .celebration-actions { display: flex; flex-direction: column; gap: 9px; margin-top: 20px; }
+  .celebration-complete,
+  .celebration-not-yet {
+    height: 54px;
+    border-radius: 14px;
+    border: none;
+    font: inherit;
+    font-weight: 700;
+    font-size: 15.5px;
+    cursor: pointer;
+  }
+  .celebration-complete { background: var(--accent); color: var(--accent-ink); }
+  .celebration-not-yet { height: 48px; background: none; color: var(--ink); font-weight: 600; font-size: 14.5px; }
 </style>
 </head>
 <body>
@@ -206,11 +367,37 @@
     <h1 id="listName"></h1>
     <p id="listHint">Tap an item to tick it off.</p>
   </header>
-  <main id="groups"></main>
+  <main id="main">
+    <div id="lockedBanner" class="locked-banner hidden">
+      <span class="locked-icon">✓</span>
+      <div class="locked-text">
+        <div class="locked-title" id="lockedTitle"></div>
+        <div class="locked-body">Locked for reference. Items can't be changed.</div>
+      </div>
+      <button type="button" class="reopen-button" id="reopenButton">Reopen</button>
+    </div>
+    <button type="button" id="completeButton" class="complete-button hidden">✓ Mark list as completed</button>
+    <div id="groups"></div>
+  </main>
   <footer>Shared from Pomegranate &middot; view only, no account needed</footer>
 </div>
 
 <div id="syncBanner" class="sync-banner hidden"></div>
+<div id="toast" class="toast hidden"></div>
+
+<div id="celebration" class="celebration hidden">
+  <div class="fireworks" id="fireworks"></div>
+  <div class="celebration-card">
+    <div class="celebration-tick">✓</div>
+    <div class="celebration-title">Yay, you did it!</div>
+    <p class="celebration-body">Everything on <strong id="celebrateName"></strong> is in the basket. Mark the list as completed?</p>
+    <p class="celebration-note">Completed lists are locked and move to the Completed filter.</p>
+    <div class="celebration-actions">
+      <button type="button" class="celebration-complete" id="celebrationCompleteBtn">Mark as completed</button>
+      <button type="button" class="celebration-not-yet" id="celebrationNotYetBtn">Not yet</button>
+    </div>
+  </div>
+</div>
 
 <script type="module">
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
@@ -346,8 +533,42 @@ const loadingEl = document.getElementById("loading");
 const notFoundEl = document.getElementById("notfound");
 const appEl = document.getElementById("app");
 const nameEl = document.getElementById("listName");
+const mainEl = document.getElementById("main");
 const groupsEl = document.getElementById("groups");
 const syncBannerEl = document.getElementById("syncBanner");
+const toastEl = document.getElementById("toast");
+const lockedBannerEl = document.getElementById("lockedBanner");
+const lockedTitleEl = document.getElementById("lockedTitle");
+const reopenButtonEl = document.getElementById("reopenButton");
+const completeButtonEl = document.getElementById("completeButton");
+const celebrationEl = document.getElementById("celebration");
+const fireworksEl = document.getElementById("fireworks");
+const celebrateNameEl = document.getElementById("celebrateName");
+const celebrationCompleteBtn = document.getElementById("celebrationCompleteBtn");
+const celebrationNotYetBtn = document.getElementById("celebrationNotYetBtn");
+
+// The list from the last successful fetch — toggle()/the celebration
+// trigger/the complete-button visibility all read this rather than
+// re-fetching, so they can react to an optimistic (still-pending) tick
+// instantly rather than waiting on a round trip.
+let currentList = null;
+
+const SHORT_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+// Matches shortDate() in app/src/lib/format.ts — parses the date part
+// directly rather than through `new Date(iso)`, which can shift a day in
+// either direction depending on the viewer's timezone offset.
+function shortDate(isoDate) {
+  const parts = isoDate.split("-").map(Number);
+  return parts[2] + " " + SHORT_MONTHS[parts[1] - 1];
+}
+
+let toastTimer = null;
+function showToast(message) {
+  toastEl.textContent = message;
+  toastEl.classList.remove("hidden");
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.add("hidden"), 3500);
+}
 
 // --- Offline-tolerant ticking ------------------------------------------
 // toggle_shared_item FLIPS whatever the server currently has, rather than
@@ -492,8 +713,149 @@ function renderItem(key, name, qty, done) {
   return row;
 }
 
+// --- Completion ----------------------------------------------------------
+// Mirrors app/src/lib/shopping.ts's canCompleteList(): every item ticked,
+// at least one, and not already completed. Reads the actual rendered DOM
+// (not currentList + desiredDone()) deliberately: toggle() keeps each
+// row's "done" class correct the instant it's tapped and however long the
+// background sync takes, but currentList itself is only ever replaced by
+// a fresh fetch — once a tap's sync completes and its pendingFlips entry
+// clears, desiredDone() would silently fall back to that stale snapshot
+// and misreport the item as not done again until the next poll.
+function allVisuallyDone() {
+  const items = groupsEl.querySelectorAll(".item");
+  return items.length > 0 && Array.from(items).every((el) => el.classList.contains("done"));
+}
+
+function canComplete() {
+  return !!currentList && !currentList.completed && allVisuallyDone();
+}
+
+function showCelebration() {
+  celebrateNameEl.textContent = currentList ? currentList.name || "Shopping list" : "";
+  celebrationEl.classList.remove("hidden");
+}
+
+function hideCelebration() {
+  celebrationEl.classList.add("hidden");
+}
+
+// Trigger: the toggle that ticks the *last* remaining item, on a
+// non-completed list with >=1 item. Fires ~420ms later so the tick is seen
+// first, re-checking at that point against the live currentList — not
+// predicting ahead — since unticking (or someone else's edit landing via a
+// poll) during the delay should cancel it. Each toggle clears any pending
+// timer before deciding whether to schedule a new one, so an immediate
+// untick cancels cleanly. Never triggered by the "Mark list as completed"
+// button itself — only by this path.
+let celebrateTimer = null;
+function scheduleCelebrationCheck() {
+  if (celebrateTimer) {
+    clearTimeout(celebrateTimer);
+    celebrateTimer = null;
+  }
+  if (!canComplete()) return;
+  celebrateTimer = setTimeout(() => {
+    celebrateTimer = null;
+    if (canComplete()) showCelebration();
+  }, 420);
+}
+
+async function markComplete() {
+  completeButtonEl.disabled = true;
+  celebrationCompleteBtn.disabled = true;
+  const { error } = await supabase.rpc("complete_shared_list", { p_token: token });
+  completeButtonEl.disabled = false;
+  celebrationCompleteBtn.disabled = false;
+  if (error) {
+    showToast(error.message || "Couldn't complete the list — try again.");
+    return;
+  }
+  hideCelebration();
+  await fetchAndRender();
+}
+
+async function reopenSharedList() {
+  reopenButtonEl.disabled = true;
+  const { error } = await supabase.rpc("reopen_shared_list", { p_token: token });
+  reopenButtonEl.disabled = false;
+  if (error) {
+    showToast(error.message || "Couldn't reopen the list — try again.");
+    return;
+  }
+  await fetchAndRender();
+}
+
+completeButtonEl.addEventListener("click", markComplete);
+reopenButtonEl.addEventListener("click", reopenSharedList);
+celebrationCompleteBtn.addEventListener("click", markComplete);
+celebrationNotYetBtn.addEventListener("click", hideCelebration);
+
+const FIREWORK_COLORS = ["#EDC6D3", "#F4F2EC", "#96C0BF", "#BC7087", "#F2C98A", "#E46A9A"];
+// (x%, y%, delay s, radius px) — matches the design handoff exactly.
+const BURSTS = [
+  [24, 20, 0, 78],
+  [76, 14, 0.45, 64],
+  [50, 30, 0.9, 90],
+  [20, 44, 1.35, 62],
+  [80, 40, 1.7, 74],
+  [52, 10, 2.1, 58],
+];
+
+// Built once — CSS `infinite` animations simply restart from the top each
+// time the (display:none-when-hidden) .celebration element is shown again,
+// so there's no need to rebuild or restart anything in JS per celebration.
+function buildFireworks() {
+  BURSTS.forEach(([x, y, delay, radius], b) => {
+    const burst = document.createElement("div");
+    burst.className = "burst";
+    burst.style.left = x + "%";
+    burst.style.top = y + "%";
+
+    const flash = document.createElement("span");
+    flash.className = "flash";
+    flash.style.animationDelay = delay + "s";
+    burst.appendChild(flash);
+
+    const n = 18;
+    for (let k = 0; k < n; k++) {
+      const angle = (k / n) * Math.PI * 2;
+      const r = radius * (k % 2 ? 0.72 : 1);
+      const size = k % 3 ? 5 : 7;
+      const color = FIREWORK_COLORS[(k + b) % FIREWORK_COLORS.length];
+      const particle = document.createElement("span");
+      particle.className = "particle";
+      particle.style.width = size + "px";
+      particle.style.height = size + "px";
+      particle.style.marginLeft = -size / 2 + "px";
+      particle.style.marginTop = -size / 2 + "px";
+      particle.style.background = color;
+      particle.style.boxShadow = "0 0 8px " + color;
+      particle.style.setProperty("--dx", (Math.cos(angle) * r).toFixed(1) + "px");
+      particle.style.setProperty("--dy", (Math.sin(angle) * r).toFixed(1) + "px");
+      particle.style.animationDelay = delay + "s";
+      burst.appendChild(particle);
+    }
+    fireworksEl.appendChild(burst);
+  });
+}
+buildFireworks();
+
 function render(list) {
+  currentList = list;
   nameEl.textContent = list.name || "Shopping list";
+
+  if (list.completed) {
+    hideCelebration();
+    lockedTitleEl.textContent = "Completed" + (list.completed_at ? " " + shortDate(list.completed_at) : "");
+    lockedBannerEl.classList.remove("hidden");
+    completeButtonEl.classList.add("hidden");
+    mainEl.classList.add("locked");
+  } else {
+    lockedBannerEl.classList.add("hidden");
+    mainEl.classList.remove("locked");
+    completeButtonEl.classList.toggle("hidden", !canComplete());
+  }
 
   const buckets = {};
   (list.items || []).forEach((it) => {
@@ -548,6 +910,7 @@ function render(list) {
 // attemptFlush()/scheduleRetry(), which keep trying in the background
 // (see the "Offline-tolerant ticking" block above) until it lands.
 function toggle(key) {
+  if (currentList && currentList.completed) return;
   pendingFlips[key] = (pendingFlips[key] || 0) + 1;
   savePending();
   setRowPending(key, true);
@@ -555,6 +918,8 @@ function toggle(key) {
   const row = groupsEl.querySelector('[data-key="' + CSS.escape(key) + '"]');
   if (row) row.classList.toggle("done");
   attemptFlush(key);
+  completeButtonEl.classList.toggle("hidden", !canComplete());
+  scheduleCelebrationCheck();
 }
 
 async function fetchAndRender() {
