@@ -172,6 +172,16 @@
     color: var(--muted);
     padding: 28px 18px 40px;
   }
+  .footer-note { margin-top: 4px; }
+  /* Credits the owner and links back to the app — on both the shared-list
+     and shared-recipe pages, to nudge whoever's viewing toward creating
+     their own account. Built via textContent, never innerHTML, since the
+     owner's display name is user-controlled data rendered to any visitor
+     of the link. */
+  .credit { font-size: 12px; color: var(--muted); line-height: 1.6; }
+  .credit strong { color: var(--ink); }
+  .credit a { color: var(--teal); font-weight: 700; text-decoration: none; }
+  .credit a:hover { text-decoration: underline; }
   /* Pinned to the viewport (not the document) so it stays visible while
      scrolling a long list — this matters while actively shopping. */
   .sync-banner {
@@ -321,6 +331,11 @@
     border-top: 1px solid var(--line);
     font-size: 11px;
     color: var(--muted);
+    text-align: center;
+  }
+  #recipeCredit {
+    width: min(210mm, calc(100vw - 24px));
+    margin: 0 auto 34px;
     text-align: center;
   }
 
@@ -520,7 +535,10 @@
     <button type="button" id="completeButton" class="complete-button hidden">✓ Mark list as completed</button>
     <div id="groups"></div>
   </main>
-  <footer>Shared from Pomegranate &middot; view only, no account needed</footer>
+  <footer>
+    <div id="listCredit" class="credit"></div>
+    <div class="footer-note">view only, no account needed</div>
+  </footer>
 </div>
 
 <div id="recipeApp" class="hidden">
@@ -545,8 +563,9 @@
         <div id="recipeSteps" class="steps"></div>
       </section>
     </div>
-    <div class="page-footer">Shared from Pomegranate &middot; view only, no account needed</div>
+    <div class="page-footer">Shared via the Pomegranate app</div>
   </div>
+  <div id="recipeCredit" class="credit no-print"></div>
 </div>
 
 <div id="syncBanner" class="sync-banner hidden"></div>
@@ -709,6 +728,7 @@ const lockedBannerEl = document.getElementById("lockedBanner");
 const lockedTitleEl = document.getElementById("lockedTitle");
 const reopenButtonEl = document.getElementById("reopenButton");
 const completeButtonEl = document.getElementById("completeButton");
+const listCreditEl = document.getElementById("listCredit");
 const celebrationEl = document.getElementById("celebration");
 const fireworksEl = document.getElementById("fireworks");
 const celebrateNameEl = document.getElementById("celebrateName");
@@ -724,8 +744,33 @@ const recipeTagsEl = document.getElementById("recipeTags");
 const recipePhotoStripEl = document.getElementById("recipePhotoStrip");
 const recipeIngredientsEl = document.getElementById("recipeIngredients");
 const recipeStepsEl = document.getElementById("recipeSteps");
+const recipeCreditEl = document.getElementById("recipeCredit");
 const printButtonEl = document.getElementById("printButton");
 printButtonEl.addEventListener("click", () => window.print());
+
+// Shared by both views. Built with createElement/textContent, never
+// innerHTML — the owner's display name is user-controlled data (set via
+// their Google account) rendered to any anonymous visitor of their shared
+// link, so it's never safe to interpolate into an HTML string.
+const TISHOX_URL = "https://tishox.com";
+function renderCredit(container, sharedByName) {
+  container.innerHTML = "";
+  if (sharedByName) {
+    container.appendChild(document.createTextNode("Shared by "));
+    const strong = document.createElement("strong");
+    strong.textContent = sharedByName;
+    container.appendChild(strong);
+    container.appendChild(document.createTextNode(" from the Pomegranate app · "));
+  } else {
+    container.appendChild(document.createTextNode("Shared from the Pomegranate app · "));
+  }
+  const link = document.createElement("a");
+  link.href = TISHOX_URL;
+  link.target = "_blank";
+  link.rel = "noopener";
+  link.textContent = "Learn about the app →";
+  container.appendChild(link);
+}
 
 // The list from the last successful fetch — toggle()/the celebration
 // trigger/the complete-button visibility all read this rather than
@@ -1025,6 +1070,7 @@ function render(list) {
   currentList = list;
   document.title = (list.name || "Shopping list") + " · Pomegranate";
   nameEl.textContent = list.name || "Shopping list";
+  renderCredit(listCreditEl, list.shared_by);
 
   if (list.completed) {
     hideCelebration();
@@ -1177,6 +1223,7 @@ function renderRecipe(recipe) {
   document.title = (recipe.title || "Recipe") + " · Pomegranate";
   recipeNameEl.textContent = recipe.title || "Recipe";
   recipeMetaEl.textContent = countLine((recipe.ingredients || []).length, (recipe.steps || []).length);
+  renderCredit(recipeCreditEl, recipe.shared_by);
 
   const photos = recipe.photo_urls || [];
   if (photos[0]) {
