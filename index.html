@@ -276,21 +276,6 @@
     margin: 18px 0;
   }
   .recipe-hero img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
-  .photo-strip {
-    display: flex;
-    gap: 9px;
-    overflow-x: auto;
-    margin-bottom: 18px;
-    padding-bottom: 2px;
-  }
-  .strip-photo {
-    flex: 0 0 auto;
-    width: 96px;
-    height: 72px;
-    border-radius: 9px;
-    object-fit: cover;
-    background: var(--bg);
-  }
   .page-body {
     display: grid;
     grid-template-columns: 1fr;
@@ -354,6 +339,13 @@
     .toolbar, .no-print { display: none !important; }
     .page { width: auto; margin: 0; box-shadow: none; border-radius: 0; padding: 0; }
     .page-body { grid-template-columns: 0.85fr 1.4fr; }
+    /* Still the padding-top trick (see .recipe-hero above), just a
+       shorter box than the screen's 75% — on an A4 page (180mm content
+       width after margins), 40% works out to a ~72mm-tall photo, leaving
+       the title block (page-header) comfortable room so the two
+       together stay well inside half the page's printable height and
+       don't push a short recipe onto a second page just for the photo. */
+    .recipe-hero { padding-top: 40%; }
   }
 
   /* Locked (completed) list ---------------------------------------- */
@@ -560,7 +552,6 @@
       <div id="recipeTags" class="recipe-tags"></div>
     </div>
     <div id="recipeHero" class="recipe-hero hidden"><img id="recipeHeroImg" alt="" /></div>
-    <div id="recipePhotoStrip" class="photo-strip hidden"></div>
     <div class="page-body">
       <section>
         <h2 class="section-title">Ingredients</h2>
@@ -750,7 +741,6 @@ const recipeMetaEl = document.getElementById("recipeMeta");
 const recipeHeroEl = document.getElementById("recipeHero");
 const recipeHeroImgEl = document.getElementById("recipeHeroImg");
 const recipeTagsEl = document.getElementById("recipeTags");
-const recipePhotoStripEl = document.getElementById("recipePhotoStrip");
 const recipeIngredientsEl = document.getElementById("recipeIngredients");
 const recipeStepsEl = document.getElementById("recipeSteps");
 const recipeCreditEl = document.getElementById("recipeCredit");
@@ -1257,9 +1247,8 @@ function renderRecipe(recipe) {
   renderFooterCredit(recipeFooterEl, recipe.shared_by);
   renderCredit(recipeCreditEl, null);
 
-  const photos = recipe.photo_urls || [];
-  if (photos[0]) {
-    recipeHeroImgEl.src = photos[0];
+  if (recipe.photo_url) {
+    recipeHeroImgEl.src = recipe.photo_url;
     recipeHeroEl.classList.remove("hidden");
   } else {
     recipeHeroEl.classList.add("hidden");
@@ -1272,20 +1261,6 @@ function renderRecipe(recipe) {
     pill.textContent = tag;
     recipeTagsEl.appendChild(pill);
   });
-
-  recipePhotoStripEl.innerHTML = "";
-  if (photos.length > 1) {
-    photos.forEach((url) => {
-      const img = document.createElement("img");
-      img.className = "strip-photo";
-      img.src = url;
-      img.alt = "";
-      recipePhotoStripEl.appendChild(img);
-    });
-    recipePhotoStripEl.classList.remove("hidden");
-  } else {
-    recipePhotoStripEl.classList.add("hidden");
-  }
 
   recipeIngredientsEl.innerHTML = "";
   (recipe.ingredients || []).forEach((ing) => {
