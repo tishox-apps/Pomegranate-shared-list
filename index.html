@@ -260,13 +260,21 @@
   }
   .recipe-hero {
     width: 100%;
+    aspect-ratio: 4 / 3;
     max-height: 260px;
     border-radius: 10px;
     overflow: hidden;
     background: var(--bg);
     margin: 18px 0;
+    /* position:relative + an absolutely-positioned img, rather than the
+       img sizing itself off width:100%/height:100% in normal flow — the
+       latter left a blank strip beside the photo in Chrome's print/PDF
+       pipeline (its pagination pass can lay the img out against a stale
+       width before the final page width settles). Pinning the img to the
+       established box via inset:0 isn't subject to that. */
+    position: relative;
   }
-  .recipe-hero img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .recipe-hero img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
   .photo-strip {
     display: flex;
     gap: 9px;
